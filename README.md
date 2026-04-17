@@ -96,7 +96,7 @@
 ## 👤 Credits
 
 - **Core Developers**: Rif, Fazle, Sadman, and Nafiz.
-- **Project Lead**: Nafiz (ID: 0221_0025)
+- **Project Lead**: Fazle 
 - **Inspiration**: Naruto Shippuden / Cyberpunk aesthetics.
 
 ---
