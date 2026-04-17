@@ -1685,12 +1685,27 @@ void drawLevel3(int screenW, int screenH) {
     if (texIdx < 4 && sStoryTextures[texIdx]) {
       iShowImage(0, 0, screenW, screenH, sStoryTextures[texIdx]);
 
-      // Story overlay prompt
+      // Cool UI for Story Prompt (Pulsing Neon Red/Cyan)
+      int pulsate = 150 + (int)(105 * sin(sElapsedFrames * 0.15));
+      
+      // Decorative Bar
       iSetColor(0, 0, 0);
-      iFilledRectangle(screenW / 2.0 - 150, 20, 300, 30);
+      iFilledRectangle(screenW - 310, 25, 280, 45);
+      
+      // Glowing Borders
+      iSetColor(255, 50, 0); // Neon Red-Orange
+      iRectangle(screenW - 310, 25, 280, 45);
+      iSetColor(0, 255, 255); // Cyan secondary
+      iRectangle(screenW - 311, 24, 282, 47);
+
+      // Pulsing Text
       iSetColor(255, 255, 255);
-      iRectangle(screenW / 2.0 - 150, 20, 300, 30);
-      iText(screenW / 2.0 - 100, 30, (char *)"Press SPACE to continue", (void *)1);
+      if (pulsate > 200) iSetColor(0, 255, 255); // Flash cyan
+      iText(screenW - 285, 42, (char *)"PRESS 'P' TO CONTINUE", (void *)2);
+      
+      // Mini icon
+      iSetColor(255, 100, 0);
+      iText(screenW - 55, 42, (char *)">>", (void *)2);
     }
   }
 }
@@ -1713,9 +1728,11 @@ void updateLevel3() {
     return; // Stop other updates while winning
   }
 
-  // Update Timer
-  sElapsedFrames++;
-  sElapsedSeconds = sElapsedFrames * 0.016;
+  // Update Timer - Stop if game over or won
+  if (!sIsGameOver && !sIsWinning) {
+    sElapsedFrames++;
+    sElapsedSeconds = sElapsedFrames * 0.016;
+  }
 
   // Fuel Refill
   if (sPlayerFuel < 100.0) {
@@ -1905,16 +1922,10 @@ void updateLevel3() {
     }
   }
 
-  // Player Health / Lives check
+  // Player Health / Lives check - Immediate Game Over
   if (sPlayerHealth <= 0) {
-    sPlayerLives--;
-    if (sPlayerLives <= 0) {
-      sIsGameOver = true;
-    } else {
-      sIsDying = true;
-      sDeathFrame = 0;
-      sDeathTimer = 0;
-    }
+    sPlayerHealth = 0;
+    sIsGameOver = true;
     return;
   }
 
@@ -2433,18 +2444,18 @@ void updateLevel3() {
 
         default: // STANCE/WALK/RUN
             if (!sEnemies[i].isAttacking) {
-                if (fabs(dist) > 400.0) {
+                if (fabs(dist) > 300.0) { // Reduced from 400
                     // Sprint toward player if far away
                     sEnemies[i].x += (dist > 0) ? speed * 1.5 : -speed * 1.5;
-                } else if (fabs(dist) > 100.0) {
+                } else if (fabs(dist) > 70.0) { // Reduced from 100
                     sEnemies[i].x += (dist > 0) ? speed : -speed;
                 } else {
-                    // When close, attack then burrow
+                    // When close, attack then burrow more aggressively
                     if (sEnemies[i].attackCooldown <= 0) {
                         sEnemies[i].isAttacking = true;
                         sEnemies[i].attackFrame = 0;
                         sEnemies[i].attackTimer = 0;
-                    } else if (rand() % 100 < 5) {
+                    } else if (rand() % 100 < 10) { // Increased burrow chance from 5
                         sEnemies[i].state = STATE_BURROWING;
                     }
                 }
@@ -2475,11 +2486,11 @@ void updateLevel3() {
           // Speed slowed down significantly (6.0 walk, 9.0 run/rage)
           double moveSpeed = sBossRageMode ? 9.0 : 6.0;
 
-          if (fabs(dist) > 300.0) {
+          if (fabs(dist) > 250.0) {
             // Far: Run toward player
             sEnemies[i].x += (dist > 0) ? moveSpeed : -moveSpeed;
             sEnemies[i].state = STATE_RUN;
-          } else if (fabs(dist) > 100.0) {
+          } else if (fabs(dist) > 80.0) {
             // Medium: Walk/approach
             sEnemies[i].x += (dist > 0) ? moveSpeed : -moveSpeed;
             sEnemies[i].state = STATE_WALK;
@@ -2487,8 +2498,8 @@ void updateLevel3() {
             sEnemies[i].state = STATE_STANCE;
 
             // Attack selection - CHAOTIC in rage
-            int attackChance = sBossRageMode ? 2 : 15;
-            if (sEnemies[i].attackCooldown <= 0 && rand() % attackChance < 3) {
+            int attackChance = sBossRageMode ? 10 : 30;
+            if (sEnemies[i].attackCooldown <= 0 && rand() % attackChance < 5) {
               sEnemies[i].isAttacking = true;
               sEnemies[i].attackFrame = 0;
               sEnemies[i].attackTimer = 0;
@@ -2948,6 +2959,9 @@ void level3SpecialKeyboardUp(unsigned char key) {
 }
 
 bool isLevel3TransitionReady() {
-  // Automatically transition after a 6-second victory celebration/story
-  return (sCurrentPhase == BOSS_DEFEATED && sWinDelayTimer >= 6.0);
+    return (sCurrentPhase == BOSS_DEFEATED && sWinDelayTimer >= 8.0);
+}
+
+bool isLevel3StoryActive() {
+    return sIsStoryPlaying;
 }

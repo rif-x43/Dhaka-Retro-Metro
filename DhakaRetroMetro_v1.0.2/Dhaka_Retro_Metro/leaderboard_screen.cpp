@@ -40,6 +40,7 @@ static int sHoverClear = 0; // For button hover effect
 static int sNewRecordIndex = -1; // Index of the newly added record for animation
 static double sLastPlayerTime = -1.0; // Most recent session time
 static char sLastPlayerName[32] = ""; // Most recent session name
+static int sPulseTimer = 0; // Continuous timer for pulsing UI elements
 
 // Dust particles for "cool" theme
 static const int sDustCount = 40;
@@ -51,7 +52,7 @@ static float sDustR[sDustCount];
 
 void sortLeaderboard() {
     std::sort(sEntries.begin(), sEntries.end(), [](const LeaderboardEntry& a, const LeaderboardEntry& b) {
-        return a.totalTime > b.totalTime;
+        return a.totalTime < b.totalTime; // FASTEST Ninja first (lowest time)
     });
     if (sEntries.size() > 10) {
         sEntries.resize(10);
@@ -90,44 +91,46 @@ void clearLeaderboard() {
 void addToLeaderboard(const char* name, double totalTime) {
     if (!sLeaderboardLoaded) loadLeaderboard();
     
-    // Store for "Your Rank" display even if not in top 10
+    // Store session info
     strncpy(sLastPlayerName, name, 31);
     sLastPlayerName[31] = '\0';
     sLastPlayerTime = totalTime;
 
-    // Duplicate prevention: if player exists, only update if time is better
+    bool isNewPersonalBest = false;
     int foundIdx = -1;
     for (int i = 0; i < (int)sEntries.size(); i++) {
-        if (strcmp(sEntries[i].name, name) == 0) {
+        if (_stricmp(sEntries[i].name, name) == 0) { // Case-insensitive check
             foundIdx = i;
             break;
         }
     }
 
     if (foundIdx != -1) {
-        if (totalTime > sEntries[foundIdx].totalTime) {
+        if (totalTime < sEntries[foundIdx].totalTime) {
             sEntries[foundIdx].totalTime = totalTime;
+            isNewPersonalBest = true;
         }
     } else {
         LeaderboardEntry newEntry;
-        const char* finalName = name;
-        if (strlen(name) == 0) finalName = "Unknown Ninja";
-        
+        const char* finalName = (strlen(name) > 0) ? name : "Unknown Ninja";
         strncpy(newEntry.name, finalName, 31);
         newEntry.name[31] = '\0';
         newEntry.totalTime = totalTime;
         sEntries.push_back(newEntry);
+        isNewPersonalBest = true;
     }
 
     sortLeaderboard();
     saveLeaderboard();
     
-    // Find new position for animation highlight
+    // Determine the rank index for the "NEW!" flasher
     sNewRecordIndex = -1;
-    for (int i = 0; i < (int)sEntries.size(); i++) {
-        if (strcmp(sEntries[i].name, name) == 0 && sEntries[i].totalTime == totalTime) {
-            sNewRecordIndex = i;
-            break;
+    if (isNewPersonalBest) {
+        for (int i = 0; i < (int)sEntries.size(); i++) {
+            if (_stricmp(sEntries[i].name, name) == 0 && abs(sEntries[i].totalTime - totalTime) < 0.001) {
+                sNewRecordIndex = i;
+                break;
+            }
         }
     }
 
@@ -203,28 +206,37 @@ void drawLeaderboardScreen(int screenW, int screenH) {
     // Draw Entries
     for (int i = 0; i < (int)sEntries.size(); i++) {
         // Slide-in animation: offset depends on sAnimFrame and index
-        float animOffset = 200.0f - (sAnimFrame * 10.0f) + (i * 20.0f);
+        float animOffset = 200.0f - (sAnimFrame * 12.0f) + (i * 20.0f);
         if (animOffset < 0) animOffset = 0;
 
         int entryY = boxY + boxH - 110 - (i * 45);
         int entryX = boxX + (int)animOffset;
         
+        // HIGHLIGHT CURRENT PLAYER
+        bool isCurrentPlayer = (sLastPlayerTime > 0 && strcmp(sEntries[i].name, sLastPlayerName) == 0 && abs(sEntries[i].totalTime - sLastPlayerTime) < 0.001);
+        if (isCurrentPlayer) {
+            iSetColor(30, 30, 50);
+            iFilledRectangle(boxX + 20, entryY - 10, boxW - 40, 40);
+            iSetColor(255, 200, 50); // Glowing gold border
+            iRectangle(boxX + 20, entryY - 10, boxW - 40, 40);
+        }
+
         // Ranking Highlights
         if (i == 0) {
             iSetColor(255, 215, 0); // Gold
-            iFilledCircle(entryX + 50, entryY + 5, 12);
+            iFilledCircle(entryX + 50, entryY + 5, 13);
             iSetColor(0, 0, 0);
             iText(entryX + 46, entryY - 2, (char*)"1", (void*)2);
             iSetColor(255, 215, 0);
         } else if (i == 1) {
             iSetColor(192, 192, 192); // Silver
-            iFilledCircle(entryX + 50, entryY + 5, 12);
+            iFilledCircle(entryX + 50, entryY + 5, 13);
             iSetColor(0, 0, 0);
             iText(entryX + 46, entryY - 2, (char*)"2", (void*)2);
             iSetColor(192, 192, 192);
         } else if (i == 2) {
             iSetColor(205, 127, 50);  // Bronze
-            iFilledCircle(entryX + 50, entryY + 5, 12);
+            iFilledCircle(entryX + 50, entryY + 5, 13);
             iSetColor(0, 0, 0);
             iText(entryX + 46, entryY - 2, (char*)"3", (void*)2);
             iSetColor(205, 127, 50);
@@ -235,19 +247,21 @@ void drawLeaderboardScreen(int screenW, int screenH) {
             iText(entryX + 46, entryY, rankStr, (void*)2);
         }
 
-        // Highlight newest record with a pulse effect
+        // Highlight newest record index with a pulse effect
         if (i == sNewRecordIndex) {
-            double pulse = (sin(sAnimFrame * 0.2) + 1.0) / 2.0;
-            iSetColor(100 + (int)(pulse * 155), 200 + (int)(pulse * 55), 255);
+            // Pulse logic independently of slide-in entry animation
+            double pulse = (sin(sPulseTimer * 0.15) + 1.0) / 2.0;
+            iSetColor(150, 100 + 155 * pulse, 255);
             iText(entryX + 350, entryY, (char*)"NEW!", (void*)2);
         }
 
+        iSetColor(255, 255, 255);
         iText(entryX + 220, entryY, sEntries[i].name, (void*)2);
 
         char timeStr[32];
         int mins = (int)sEntries[i].totalTime / 60;
         int secs = (int)sEntries[i].totalTime % 60;
-        int ms = (int)((sEntries[i].totalTime - (int)sEntries[i].totalTime) * 100); // 2 decimal precision
+        int ms = (int)((sEntries[i].totalTime - (int)sEntries[i].totalTime) * 100);
         sprintf(timeStr, "%02d:%02d.%02d", mins, secs, ms);
         iText(entryX + boxW - 180, entryY, timeStr, (void*)2);
     }
@@ -284,6 +298,7 @@ void drawLeaderboardScreen(int screenW, int screenH) {
     iText(clearX + 5, clearY + 12, (char*)"CLEAR LEADERBOARD", (void*)2);
 
     if (sAnimFrame < 100) sAnimFrame++;
+    sPulseTimer++;
 
     iShowImage(sBackX, sBackY, sBackW, sBackH, sBackButton);
 }

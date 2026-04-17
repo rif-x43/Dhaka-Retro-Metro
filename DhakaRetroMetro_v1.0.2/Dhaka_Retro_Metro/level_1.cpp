@@ -10,6 +10,7 @@ void iSetColor(double r, double g, double b);
 void iFilledRectangle(double left, double bottom, double dx, double dy);
 void iFilledCircle(double x, double y, double r, int slices = 100);
 void iText(double x, double y, char *str, void *font = 0);
+void iRectangle(double left, double bottom, double dx, double dy);
 unsigned int iLoadImage(char filename[]);
 
 static bool sLevel1AssetsLoaded = false;
@@ -846,9 +847,26 @@ static void drawLevel1Story(int screenW, int screenH) {
   // Draw story full screen
   iShowImage(0, 0, screenW, screenH, tex);
 
-  // Draw skip/next instruction
-  iSetColor(255, 255, 255);
-  iText(screenW - 200, 30, (char *)"Press 'P' to Continue", (void *)2);
+  // Cool UI for Story Prompt (Pulsing Neon)
+  int pulsate = 150 + (int)(105 * sin(sElapsedFrames * 0.15));
+  
+  // Decorative Bar
+  iSetColor(0, 0, 0);
+  iFilledRectangle(screenW - 310, 25, 280, 45);
+  
+  // Glowing Borders
+  iSetColor(0, 255, 255);
+  iRectangle(screenW - 310, 25, 280, 45);
+  iSetColor(0, 150, 255);
+  iRectangle(screenW - 311, 24, 282, 47);
+
+  // Pulsing Text
+  iSetColor(200, pulsate, 255);
+  iText(screenW - 285, 42, (char *)"PRESS 'P' TO CONTINUE", (void *)2);
+  
+  // Mini icon
+  iSetColor(0, 255, 255);
+  iText(screenW - 55, 42, (char *)">>", (void *)2);
 }
 
 void drawLevel1(int screenW, int screenH) {
@@ -1173,9 +1191,11 @@ void updateLevel1() {
     return; // Stop other updates while winning
   }
 
-  // Update Timer
-  sElapsedFrames++;
-  sElapsedSeconds = sElapsedFrames * 0.016;
+  // Update Timer - Stop if game over or won
+  if (!sIsGameOver && !sIsWinning) {
+    sElapsedFrames++;
+    sElapsedSeconds = sElapsedFrames * 0.016;
+  }
 
   // Update Camera (follow player)
   double targetCamX = sPlayerX - 400; // Keep player 400px from left
@@ -1278,16 +1298,10 @@ void updateLevel1() {
     }
   }
 
-  // Player Health / Lives check
+  // Player Health / Lives check - Immediate Game Over
   if (sPlayerHealth <= 0) {
-    sPlayerLives--;
-    if (sPlayerLives <= 0) {
-      sIsGameOver = true;
-    } else {
-      sIsDying = true;
-      sDeathFrame = 0;
-      sDeathTimer = 0;
-    }
+    sPlayerHealth = 0;
+    sIsGameOver = true;
     return;
   }
 
@@ -1542,7 +1556,20 @@ void updateLevel1() {
     sPhaseEnemiesKilled = 0;
     sSpawnInterval = 100;
     sPhasePotion.isActive = true;
-    sPhasePotion.x = sCameraX + 100 + (rand() % 880);
+    
+    // Find safe x for potion
+    bool safe = false;
+    int limit = 0;
+    while(!safe && limit < 30) {
+      sPhasePotion.x = sCameraX + 150 + (rand() % 700);
+      safe = true;
+      for(int i=0; i<MAX_OBSTACLES; i++) {
+        if(sObstacles[i].isActive && (sPhasePotion.x > sObstacles[i].x - 60 && sPhasePotion.x < sObstacles[i].x + sObstacles[i].width + 60)) {
+          safe = false; break;
+        }
+      }
+      limit++;
+    }
     sPhasePotion.y = GROUND_LEVEL;
   } else if (sCurrentPhase == PHASE_2 && sPlayerX > 2160 &&
              sPhaseEnemiesKilled >= 15) {
@@ -1552,7 +1579,20 @@ void updateLevel1() {
     sSpawnInterval = 60; // Faster spawn for Phase 3 puppets
     triggerStory(1);     // Level 1 Phase 3 Story (1.4, 1.5)
     sPhasePotion.isActive = true;
-    sPhasePotion.x = sCameraX + 100 + (rand() % 880);
+
+    // Find safe x for potion
+    bool safe = false;
+    int limit = 0;
+    while(!safe && limit < 30) {
+      sPhasePotion.x = sCameraX + 150 + (rand() % 700);
+      safe = true;
+      for(int i=0; i<MAX_OBSTACLES; i++) {
+        if(sObstacles[i].isActive && (sPhasePotion.x > sObstacles[i].x - 60 && sPhasePotion.x < sObstacles[i].x + sObstacles[i].width + 60)) {
+          safe = false; break;
+        }
+      }
+      limit++;
+    }
     sPhasePotion.y = GROUND_LEVEL;
   }
 
@@ -1609,13 +1649,17 @@ void updateLevel1() {
           }
         } else {
           // Normal Chasing AI
-          if (fabs(dist) > 90.0) {
+          if (fabs(dist) > 55.0) {
             sEnemies[i].x += (dist > 0) ? speed : -speed;
             sEnemies[i].state = STATE_WALK;
           } else {
             sEnemies[i].state = STATE_STANCE;
-            // Normal attack
-            if (!sEnemies[i].isAttacking && rand() % 50 < 2) {
+            // Reposition if in stance but slightly out of melee range
+            if (fabs(dist) > 30.0 && rand() % 100 < 5) {
+                sEnemies[i].x += (dist > 0) ? 2.0 : -2.0;
+            }
+            // Normal attack - more aggressive
+            if (!sEnemies[i].isAttacking && rand() % 25 < 2) {
               sEnemies[i].isAttacking = true;
               sEnemies[i].state = STATE_ATTACK1;
               sEnemies[i].attackFrame = 0;
@@ -1956,4 +2000,8 @@ void level1SpecialKeyboardUp(unsigned char key) {
 
 bool isLevel1TransitionReady() {
   return (sCurrentPhase == BOSS_DEFEATED && sWinDelayTimer >= 8.0);
+}
+
+bool isLevel1StoryActive() {
+    return sIsStoryPlaying;
 }

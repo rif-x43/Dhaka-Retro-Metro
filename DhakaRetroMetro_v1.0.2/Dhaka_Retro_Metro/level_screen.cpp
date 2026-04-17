@@ -30,10 +30,10 @@ static int sBackW = 60;
 static int sBackH = 60;
 
 // Level button positions (2x2 grid)
-static int sLevelBtnW = 200;
-static int sLevelBtnH = 120;
-static int sLevelGapX = 50;
-static int sLevelGapY = 40;
+static int sLevelBtnW = 240;
+static int sLevelBtnH = 144;
+static int sLevelGapX = 60;
+static int sLevelGapY = 50;
 
 static int sLevel1X, sLevel1Y;
 static int sLevel2X, sLevel2Y;
@@ -193,48 +193,44 @@ void drawLevelScreen(int screenW, int screenH) {
   iShowImage(sLevel1X, sLevel1Y, sLevelBtnW, sLevelBtnH, sLevel1Img);
   iShowImage(sLevel2X, sLevel2Y, sLevelBtnW, sLevelBtnH, sLevel2Img);
 
-  // Hover borders on unlocked arenas
-  if (sHoveredLevel == 1)
-    drawHoverBorder(sLevel1X, sLevel1Y, sLevelBtnW, sLevelBtnH);
-  if (sHoveredLevel == 2)
-    drawHoverBorder(sLevel2X, sLevel2Y, sLevelBtnW, sLevelBtnH);
-
-  // Labels under unlocked arenas
+  // Pixelic Labels on images
+  iSetColor(20, 20, 20);
+  iFilledRectangle(sLevel1X + 5, sLevel1Y + 5, sLevelBtnW - 10, 32);
+  iFilledRectangle(sLevel2X + 5, sLevel2Y + 5, sLevelBtnW - 10, 32);
+  iSetColor(255, 200, 100);
+  iRectangle(sLevel1X + 5, sLevel1Y + 5, sLevelBtnW - 10, 32);
+  iRectangle(sLevel2X + 5, sLevel2Y + 5, sLevelBtnW - 10, 32);
   iSetColor(255, 255, 255);
-  iText((double)(sLevel1X + sLevelBtnW / 2 - 30), (double)(sLevel1Y - 22),
-        (char *)"ARENA 1");
-  iText((double)(sLevel2X + sLevelBtnW / 2 - 30), (double)(sLevel2Y - 22),
-        (char *)"ARENA 2");
+  iText(sLevel1X + sLevelBtnW / 2 - 45, sLevel1Y + 14, (char *)"ARENA 1", (void *)2);
+  iText(sLevel2X + sLevelBtnW / 2 - 45, sLevel2Y + 14, (char *)"ARENA 2", (void *)2);
 
   // Draw Arena 3 (unlocked)
   iShowImage(sLevel3X, sLevel3Y, sLevelBtnW, sLevelBtnH, sLevel3Img);
+  iSetColor(20, 20, 20);
+  iFilledRectangle(sLevel3X + 5, sLevel3Y + 5, sLevelBtnW - 10, 32);
+  iSetColor(255, 200, 100);
+  iRectangle(sLevel3X + 5, sLevel3Y + 5, sLevelBtnW - 10, 32);
+  iSetColor(255, 255, 255);
+  iText(sLevel3X + sLevelBtnW / 2 - 45, sLevel3Y + 14, (char *)"ARENA 3", (void *)2);
 
   // Draw Arena 4 (conditionally locked/unlocked)
   if (sLevel4Unlocked) {
     iShowImage(sLevel4X, sLevel4Y, sLevelBtnW, sLevelBtnH, sLevel4Img);
+    iSetColor(20, 20, 20);
+    iFilledRectangle(sLevel4X + 5, sLevel4Y + 5, sLevelBtnW - 10, 32);
+    iSetColor(255, 200, 100);
+    iRectangle(sLevel4X + 5, sLevel4Y + 5, sLevelBtnW - 10, 32);
+    iSetColor(255, 255, 255);
+    iText(sLevel4X + sLevelBtnW / 2 - 55, sLevel4Y + 14, (char *)"FINAL GATE", (void *)2);
   } else {
     drawLockedOverlay(sLevel4X, sLevel4Y, sLevelBtnW, sLevelBtnH, sLevel4Img);
   }
 
   // Hover borders
-  if (sHoveredLevel == 3)
-    drawHoverBorder(sLevel3X, sLevel3Y, sLevelBtnW, sLevelBtnH);
-  if (sHoveredLevel == 4 && sLevel4Unlocked)
-    drawHoverBorder(sLevel4X, sLevel4Y, sLevelBtnW, sLevelBtnH);
-
-  // Labels under arenas
-  iSetColor(255, 255, 255);
-  iText((double)(sLevel3X + sLevelBtnW / 2 - 30), (double)(sLevel3Y - 22),
-        (char *)"ARENA 3");
-  if (sLevel4Unlocked) {
-    iSetColor(255, 200, 100);
-    iText((double)(sLevel4X + sLevelBtnW / 2 - 30), (double)(sLevel4Y - 22),
-          (char *)"ARENA 4");
-  } else {
-    iSetColor(180, 180, 180);
-    iText((double)(sLevel4X + sLevelBtnW / 2 - 30), (double)(sLevel4Y - 22),
-          (char *)"LOCKED");
-  }
+  if (sHoveredLevel == 1) drawHoverBorder(sLevel1X, sLevel1Y, sLevelBtnW, sLevelBtnH);
+  if (sHoveredLevel == 2) drawHoverBorder(sLevel2X, sLevel2Y, sLevelBtnW, sLevelBtnH);
+  if (sHoveredLevel == 3) drawHoverBorder(sLevel3X, sLevel3Y, sLevelBtnW, sLevelBtnH);
+  if (sHoveredLevel == 4 && sLevel4Unlocked) drawHoverBorder(sLevel4X, sLevel4Y, sLevelBtnW, sLevelBtnH);
 
   // Back button
   iShowImage(sBackX, sBackY, sBackW, sBackH, sBackButton);

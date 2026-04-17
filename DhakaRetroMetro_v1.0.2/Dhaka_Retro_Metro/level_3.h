@@ -11,3 +11,5 @@ bool isLevel3GameOver();
 bool isLevel3GameWon();
 void resetLevel3();
 bool isLevel3TransitionReady();
+bool isLevel3StoryActive();
+

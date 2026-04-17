@@ -1,0 +1,28 @@
+# Visual Studio 
+*.sdf
+*.suo
+*.user
+*.filters
+*.opensdf
+*.db
+*.ipch
+
+# Build Directories
+Debug/
+Release/
+x64/
+ipch/
+
+# iGraphics leftovers
+*.log
+*.tlog
+
+# User specific files
+*.suo
+*.user
+*.userosscache
+*.sln.doccache
+
+# Temporary files
+[Bb]in/
+[Oo]bj/

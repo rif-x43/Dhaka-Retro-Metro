@@ -10,6 +10,7 @@ void iSetColor(double r, double g, double b);
 void iFilledRectangle(double left, double bottom, double dx, double dy);
 void iFilledCircle(double x, double y, double r, int slices = 100);
 void iText(double x, double y, char *str, void *font = 0);
+void iRectangle(double left, double bottom, double dx, double dy);
 unsigned int iLoadImage(char filename[]);
 
 // Screen dimensions
@@ -772,8 +773,26 @@ static void drawLevel2Story(int screenW, int screenH) {
 
   iShowImage(0, 0, screenW, screenH, tex);
 
-  iSetColor(255, 255, 255);
-  iText(screenW - 200, 30, (char *)"Press 'P' to Continue", (void *)2);
+  // Cool UI for Story Prompt (Pulsing Neon Orange)
+  int pulsate = 150 + (int)(105 * sin(sElapsedFrames * 0.15));
+  
+  // Decorative Bar
+  iSetColor(0, 0, 0);
+  iFilledRectangle(screenW - 310, 25, 280, 45);
+  
+  // Glowing Borders
+  iSetColor(255, 100, 0); // Neon Orange
+  iRectangle(screenW - 310, 25, 280, 45);
+  iSetColor(255, 150, 0);
+  iRectangle(screenW - 311, 24, 282, 47);
+
+  // Pulsing Text
+  iSetColor(255, pulsate, 0);
+  iText(screenW - 285, 42, (char *)"PRESS 'P' TO CONTINUE", (void *)2);
+  
+  // Mini icon
+  iSetColor(255, 150, 0);
+  iText(screenW - 55, 42, (char *)">>", (void *)2);
 }
 
 void drawLevel2(int screenW, int screenH) {
@@ -1153,9 +1172,11 @@ void updateLevel2() {
     return; // Stop other updates while winning
   }
 
-  // Update Timer
-  sElapsedFrames++;
-  sElapsedSeconds = sElapsedFrames * 0.016;
+  // Update Timer - Stop if game over or won
+  if (!sIsGameOver && !sIsWinning) {
+    sElapsedFrames++;
+    sElapsedSeconds = sElapsedFrames * 0.016;
+  }
 
   // Update Camera (follow player)
   double targetCamX = sPlayerX - 400; // Keep player 400px from left
@@ -1317,16 +1338,10 @@ void updateLevel2() {
     }
   }
 
-  // Player Health / Lives check
+  // Player Health / Lives check - Immediate Game Over
   if (sPlayerHealth <= 0) {
-    sPlayerLives--;
-    if (sPlayerLives <= 0) {
-      sIsGameOver = true;
-    } else {
-      sIsDying = true;
-      sDeathFrame = 0;
-      sDeathTimer = 0;
-    }
+    sPlayerHealth = 0;
+    sIsGameOver = true;
     return;
   }
 
@@ -1604,12 +1619,12 @@ void updateLevel2() {
 
           if (sEnemies[i].enemyType == 3) {
             // Teleport logic: if player is attacking or too close/far
-            if (rand() % 100 < 2 && sEnemies[i].state != STATE_TELEPORT) {
+            if (rand() % 100 < 5 && sEnemies[i].state != STATE_TELEPORT) { // Increased teleport chance
               sEnemies[i].state = STATE_TELEPORT;
               sEnemies[i].currentFrame = 0;
               sEnemies[i].animTimer = 0;
-              // Teleport behind player
-              double offset = (rand() % 2 == 0) ? -150.0 : 150.0;
+              // Teleport behind player with a small horizontal offset
+              double offset = (rand() % 2 == 0) ? -120.0 : 120.0;
               sEnemies[i].x = sPlayerX + offset;
             }
           }
@@ -1624,17 +1639,22 @@ void updateLevel2() {
             sEnemies[i].state = STATE_WALK;
           } else {
             sEnemies[i].state = STATE_STANCE;
-            int attackChance = (sEnemies[i].enemyType == 3) ? 15 : 40;
-            if (rand() % attackChance < 3) {
+            int attackChance = (sEnemies[i].enemyType == 3) ? 10 : 30; // More aggressive
+            if (rand() % attackChance < 4) {
               sEnemies[i].isAttacking = true;
               sEnemies[i].attackFrame = 0;
               sEnemies[i].attackTimer = 0;
               if (sEnemies[i].enemyType == 3) {
-                int r = rand() % 3;
+                int r = rand() % 4; // Added more variety
                 if (r == 0)
                   sEnemies[i].state = STATE_ATTACK1;
                 else if (r == 1)
                   sEnemies[i].state = STATE_SPECIAL;
+                else if (r == 2) {
+                    // Quick dash before attack
+                    sEnemies[i].x += (dist > 0) ? 50.0 : -50.0;
+                    sEnemies[i].state = STATE_ATTACK1;
+                }
                 else {
                   // Fireball / Projectile pressure
                   for (int k = 0; k < MAX_ENEMY_BULLETS; k++) {
@@ -1697,19 +1717,19 @@ void updateLevel2() {
             }
           }
         } else {
-          // Phase 1 chasing - spread out to avoid stacking
+          // Phase 1 chasing - spread out to avoid stacking but closer than before
           double offset =
-              (i - MAX_ENEMIES / 2.0) * 60.0; // Each puppet has unique offset
+              (i - MAX_ENEMIES / 2.0) * 45.0; // Tighter formation (was 60.0)
           double targetX = sPlayerX + offset;
-          if (fabs(sEnemies[i].x - targetX) > 15.0) {
+          if (fabs(sEnemies[i].x - targetX) > 10.0) { // More precise chasing (was 15.0)
             sEnemies[i].x += (targetX > sEnemies[i].x) ? speed : -speed;
             sEnemies[i].state = STATE_WALK;
           } else {
             sEnemies[i].state = STATE_STANCE;
           }
-          // Attack when close enough
-          if (fabs(dist) < 90.0 && !sEnemies[i].isAttacking &&
-              rand() % 30 < 2) {
+          // Attack when close enough - significantly more aggressive
+          if (fabs(dist) < 85.0 && !sEnemies[i].isAttacking &&
+              rand() % 20 < 2) { // 10% chance per frame (was ~6%)
             sEnemies[i].isAttacking = true;
             sEnemies[i].state = STATE_ATTACK1;
             sEnemies[i].attackFrame = 0;
@@ -2104,4 +2124,8 @@ void level2SpecialKeyboardUp(unsigned char key) {
 
 bool isLevel2TransitionReady() {
   return (sCurrentPhase == BOSS_DEFEATED && sWinDelayTimer >= 8.0);
+}
+
+bool isLevel2StoryActive() {
+    return sIsStoryPlaying;
 }
