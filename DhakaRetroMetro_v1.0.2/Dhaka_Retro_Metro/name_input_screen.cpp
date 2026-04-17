@@ -86,9 +86,7 @@ void drawNameInputScreen(int screenW, int screenH) {
 
 void handleNameInputKeyboard(unsigned char key) {
     if (key == '\r') {
-        if (strlen(sPlayerName) > 0) {
-            sFinished = true;
-        }
+        sFinished = true;
     } else if (key == '\b') {
         int len = strlen(sPlayerName);
         if (len > 0) {

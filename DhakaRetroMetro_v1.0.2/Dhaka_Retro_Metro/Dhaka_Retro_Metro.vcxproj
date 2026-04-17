@@ -80,6 +80,7 @@
     <ClCompile Include="level_4.cpp" />
     <ClCompile Include="name_input_screen.cpp" />
     <ClCompile Include="sudoku.cpp" />
+    <ClCompile Include="game_over_screen.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="loading_screen.h" />
@@ -96,6 +97,7 @@
     <ClInclude Include="level_3.h" />
     <ClInclude Include="name_input_screen.h" />
     <ClInclude Include="sudoku.h" />
+    <ClInclude Include="game_over_screen.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

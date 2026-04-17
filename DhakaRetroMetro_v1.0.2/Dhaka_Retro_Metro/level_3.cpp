@@ -2707,6 +2707,7 @@ void updateLevel3() {
             sIsWinning = true;
             sWinFrame = 0;
             sWinTimer = 0;
+            sCodesVerified = true; // Automate transition
             triggerStory(2); // Deidara Defeated Story (4, 5)
           } else if (sEnemies[i].state == STATE_DAMAGE) {
             int recoverFrame = (sEnemies[i].enemyType == 2) ? (DEI_DAMAGE_FRAMES - 1) : 6;
@@ -2947,5 +2948,6 @@ void level3SpecialKeyboardUp(unsigned char key) {
 }
 
 bool isLevel3TransitionReady() {
-  return (sCurrentPhase == BOSS_DEFEATED && sCodesVerified && sWinDelayTimer >= 8.0);
+  // Automatically transition after a 6-second victory celebration/story
+  return (sCurrentPhase == BOSS_DEFEATED && sWinDelayTimer >= 6.0);
 }

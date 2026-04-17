@@ -12,6 +12,7 @@
 #include "settings_screen.h"
 #include "name_input_screen.h"
 #include "sudoku.h"
+#include "game_over_screen.h"
 
 const int SCREEN_W = 1080;
 const int SCREEN_H = 635;
@@ -83,7 +84,8 @@ enum GameState {
   STATE_GAME,
   STATE_LEVEL_LOADING,
   STATE_SUDOKU,
-  STATE_NAME_INPUT
+  STATE_NAME_INPUT,
+  STATE_GAME_OVER
 };
 
 GameState gameState = STATE_LOADING;
@@ -95,6 +97,14 @@ static int sLevelTransitionTimer = 0;
 static bool sIsTransitioning = false;
 
 static unsigned int sTransitionLoadingTex = 0;
+static int sHoverQuit = 0;
+static int sGameOverTimer = 0;
+
+void triggerInstantDeath() {
+    if (gameState != STATE_GAME) return;
+    gameState = STATE_GAME_OVER;
+    sGameOverTimer = 180; // 3 seconds @ 60fps
+}
 
 void iDraw() {
   if (gameState == STATE_LOADING) {
@@ -148,6 +158,11 @@ void iDraw() {
     return;
   }
 
+  if (gameState == STATE_GAME_OVER) {
+    drawGameOverScreen(SCREEN_W, SCREEN_H, sGlobalTimer, sGameOverTimer);
+    return;
+  }
+
   // STATE_GAME
   if (selectedLevel == 1) {
     drawLevel1(SCREEN_W, SCREEN_H);
@@ -164,20 +179,35 @@ void iDraw() {
     char timeStr[32];
     int mins = (int)sGlobalTimer / 60;
     int secs = (int)sGlobalTimer % 60;
-    sprintf(timeStr, "NINJA TIME: %02d:%02d", mins, secs);
+    int ms = (int)((sGlobalTimer - (int)sGlobalTimer) * 100);
+    sprintf(timeStr, "NINJA TIME: %02d:%02d.%02d", mins, secs, ms);
     iSetColor(100, 200, 255);
     iText(SCREEN_W - 220, SCREEN_H - 40, timeStr, (void *)2);
     
     // Show Rank Feedback if won
     if (selectedLevel == 4 && isLevel4GameWon()) {
-        int rank = getPlayerRank((int)sGlobalTimer);
+        int rank = getPlayerRank(sGlobalTimer);
         char rankMsg[64];
         if (rank > 0) sprintf(rankMsg, "NEW RECORD! RANK #%d ON METRO LEGENDS", rank);
-        else sprintf(rankMsg, "VICTORY! FINISHED IN %02d:%02d", mins, secs);
+        else {
+            int mins = (int)sGlobalTimer / 60;
+            int secs = (int)sGlobalTimer % 60;
+            int ms = (int)((sGlobalTimer - (int)sGlobalTimer) * 100);
+            sprintf(rankMsg, "VICTORY! FINISHED IN %02d:%02d.%02d", mins, secs, ms);
+        }
         
         iSetColor(255, 215, 0);
         iText(SCREEN_W / 2 - 150, SCREEN_H / 2 + 50, rankMsg, (void *)2);
     }
+
+    // QUIT Button (TOP RIGHT)
+    int quitX = SCREEN_W - 100, quitY = SCREEN_H - 120, quitW = 80, quitH = 30;
+    if (sHoverQuit) iSetColor(255, 100, 100);
+    else iSetColor(150, 50, 50);
+    iFilledRectangle(quitX, quitY, quitW, quitH);
+    iSetColor(255, 255, 255);
+    iRectangle(quitX, quitY, quitW, quitH);
+    iText(quitX + 18, quitY + 10, (char*)"QUIT", (void*)2);
   }
 }
 
@@ -188,6 +218,16 @@ void iMouseMove(int mx, int my) {
   if (gameState == STATE_LEVEL_SELECT) {
     setLevelScreenHover(mx, my);
   }
+  if (gameState == STATE_LEADERBOARD) {
+    setLeaderboardHover(mx, my);
+  }
+  if (gameState == STATE_GAME_OVER) {
+    setGameOverHover(mx, my);
+  }
+  if (gameState == STATE_GAME) {
+    if (mx >= SCREEN_W - 100 && mx <= SCREEN_W - 20 && my >= SCREEN_H - 120 && my <= SCREEN_H - 90) sHoverQuit = 1;
+    else sHoverQuit = 0;
+  }
 }
 
 void iPassiveMouseMove(int mx, int my) {
@@ -196,6 +236,16 @@ void iPassiveMouseMove(int mx, int my) {
   }
   if (gameState == STATE_LEVEL_SELECT) {
     setLevelScreenHover(mx, my);
+  }
+  if (gameState == STATE_LEADERBOARD) {
+    setLeaderboardHover(mx, my);
+  }
+  if (gameState == STATE_GAME_OVER) {
+    setGameOverHover(mx, my);
+  }
+  if (gameState == STATE_GAME) {
+    if (mx >= SCREEN_W - 100 && mx <= SCREEN_W - 20 && my >= SCREEN_H - 120 && my <= SCREEN_H - 90) sHoverQuit = 1;
+    else sHoverQuit = 0;
   }
 }
 
@@ -317,6 +367,30 @@ void iMouse(int button, int state, int mx, int my) {
       gameState = STATE_MENU;
     }
     return;
+  }
+
+  if (gameState == STATE_GAME && button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+      if (mx >= SCREEN_W - 100 && mx <= SCREEN_W - 20 && my >= SCREEN_H - 120 && my <= SCREEN_H - 90) {
+          gameState = STATE_GAME_OVER;
+          sGameOverTimer = 180; // 3 seconds delay
+          return;
+      }
+  }
+
+  if (gameState == STATE_GAME_OVER && button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+      if (sGameOverTimer > 0) return; // Block input during delay
+      
+      GameOverAction action = handleGameOverClick(mx, my);
+      if (action == GO_RETRY) {
+          gameState = STATE_LEVEL_LOADING;
+      } else if (action == GO_LEADERBOARD) {
+          addToLeaderboard(getPlayerName(), sGlobalTimer);
+          sScoreSaved = true;
+          gameState = STATE_LEADERBOARD;
+      } else if (action == GO_MENU) {
+          gameState = STATE_MENU;
+      }
+      return;
   }
 
   if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
@@ -466,8 +540,10 @@ void iKeyboard(unsigned char key) {
     return;
   }
 
-  // In-game keyboard
   if (gameState == STATE_GAME) {
+    if (key == 'i' || key == 'I') {
+        triggerInstantDeath();
+    }
     if (key == 27) {
       if (isSfxOn()) {
         playClick();
@@ -611,43 +687,72 @@ void fixedUpdate() {
     return;
   }
 
+  if (gameState == STATE_GAME_OVER) {
+    if (sGameOverTimer > 0) sGameOverTimer--;
+    return;
+  }
+  
   if (gameState != STATE_GAME) {
     return;
   }
   
   if (selectedLevel == 1) {
     updateLevel1();
+    if (isLevel1GameOver()) {
+        gameState = STATE_GAME_OVER;
+        sGameOverTimer = 180;
+    }
     if (isLevel1TransitionReady()) {
       selectedLevel = 2;
       resetLevel2();
     }
   } else if (selectedLevel == 2) {
     updateLevel2();
+    if (isLevel2GameOver()) {
+        gameState = STATE_GAME_OVER;
+        sGameOverTimer = 180;
+    }
     if (isLevel2TransitionReady()) {
       selectedLevel = 3;
       gameState = STATE_LEVEL_LOADING;
     }
   } else  if (selectedLevel == 3) {
     updateLevel3();
+    if (isLevel3GameOver()) {
+        gameState = STATE_GAME_OVER;
+        sGameOverTimer = 180;
+    }
     if (isLevel3TransitionReady() && !sIsTransitioning) {
         sIsTransitioning = true;
         sLevelTransitionTimer = 180; // 3 seconds at 60fps
     }
   } else  if (selectedLevel == 4) {
     updateLevel4();
+    if (isLevel4GameOver()) {
+        gameState = STATE_GAME_OVER;
+        sGameOverTimer = 180;
+    }
     if (isLevel4GameWon() && !sScoreSaved) {
-        addToLeaderboard(getPlayerName(), (int)sGlobalTimer);
+        addToLeaderboard(getPlayerName(), sGlobalTimer);
         sScoreSaved = true;
+        
+        // Start transition to Leaderboard after 10 seconds of glory
+        sIsTransitioning = true;
+        sLevelTransitionTimer = 600; 
     }
   }
 
-  // Handle timed level transitions
+  // Handle timed level transitions and leaderboard redirection
   if (sIsTransitioning) {
       sLevelTransitionTimer--;
       if (sLevelTransitionTimer <= 0) {
           sIsTransitioning = false;
-          selectedLevel = 4;
-          gameState = STATE_LEVEL_LOADING;
+          if (selectedLevel == 3) {
+              selectedLevel = 4;
+              gameState = STATE_LEVEL_LOADING;
+          } else if (selectedLevel == 4) {
+              gameState = STATE_LEADERBOARD;
+          }
       }
   }
 
@@ -688,6 +793,7 @@ int main() {
   initSettingsScreen(SCREEN_W, SCREEN_H);
   initChooseScreen(SCREEN_W, SCREEN_H);
   initLevelScreen(SCREEN_W, SCREEN_H);
+  initGameOverScreen(SCREEN_W, SCREEN_H);
   
   sTransitionLoadingTex = iLoadImage((char *)"Images/Loading Screen.jpg");
 

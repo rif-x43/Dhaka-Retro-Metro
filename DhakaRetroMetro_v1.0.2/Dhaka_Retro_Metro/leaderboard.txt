@@ -1,10 +1,1 @@
-Shadow Striker|245
-Metro Ghost|278
-Ninja Prodigy|312
-Dhaka Dash|345
-Neon Wraith|389
-Retro Runner|423
-Metro Master|456
-Silent Shadow|498
-Urban Ninja|543
-Cyber Shinobi|600
+jojo|8.544
