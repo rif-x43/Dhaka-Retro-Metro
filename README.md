@@ -67,7 +67,7 @@ Make sure you have the following installed:
 
 ### **Controls**
 | Action | Primary Key | Alternate |
-| :--- | :---: | :---: |
+| :---: | :---: | :---: |
 | **Move Left** | `A` | `Left Arrow` |
 | **Move Right** | `D` | `Right Arrow` |
 | **Jump / Double Jump** | `W` | `Space` / `Up` |
@@ -91,10 +91,12 @@ Make sure you have the following installed:
 
 ## Project Contributors
 
-1. Rif
-2. Fazle
-3. Sadman
-4. Nafiz
+| | Name | 'ID' | 
+| :---: |:--- | :---: |
+| 1. | Rif Ahsan Rif | '00724205101042' |
+| 2. | MD. Fazle Rabbi | '00724205101046' |
+| 3. | MD. Sadman Zuhayer Rakim | '00724205101048' |
+| 4. | MD. Nafiz Khan | '00724205101064' |
 
 ## Screenshots
 
